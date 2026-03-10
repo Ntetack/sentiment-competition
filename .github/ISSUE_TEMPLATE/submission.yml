@@ -43,20 +43,17 @@ body:
     validations:
       required: true
 
-  - type: textarea
-    id: csv_content
+  - type: input
+    id: csv_url
     attributes:
-      label: "📎 CSV Predictions"
+      label: "🔗 CSV File URL"
       description: |
-        Paste the full content of your submission CSV here.
-        First row must be the header: `image_id,label`
-        Each subsequent row: `img_XXXX,N` where N is 0-6.
-      placeholder: |
-        image_id,label
-        img_0001,3
-        img_0002,0
-        img_0003,5
-      render: text
+        Upload your CSV file somewhere accessible and paste the direct download link here.
+
+        **Google Drive**: Fichier → Partager → "Tout le monde avec le lien" → copier le lien
+        **Dropbox**: Partager → copier le lien (remplacer `dl=0` par `dl=1`)
+        **HuggingFace**: `huggingface-cli upload votre_compte/submissions submission.csv`
+      placeholder: "https://drive.google.com/file/d/XXXX/view?usp=sharing"
     validations:
       required: true
 
