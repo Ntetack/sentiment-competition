@@ -1,0 +1,180 @@
+name: 🤖 Auto-Evaluate Submission
+
+on:
+  issues:
+    types: [opened, labeled]
+
+jobs:
+  # ─── Only trigger on submission issues ───────────────────────────────────────
+  check-submission:
+    runs-on: ubuntu-latest
+    outputs:
+      is_submission: ${{ steps.check.outputs.is_submission }}
+    steps:
+      - name: Check if issue is a submission
+        id: check
+        run: |
+          LABELS='${{ toJson(github.event.issue.labels.*.name) }}'
+          if echo "$LABELS" | grep -q "submission"; then
+            echo "is_submission=true" >> $GITHUB_OUTPUT
+          else
+            echo "is_submission=false" >> $GITHUB_OUTPUT
+          fi
+
+  # ─── Evaluate the model ───────────────────────────────────────────────────────
+  evaluate:
+    needs: check-submission
+    if: needs.check-submission.outputs.is_submission == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+
+      - name: 🐍 Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+          cache: pip
+
+      - name: 📦 Install dependencies
+        run: |
+          pip install -r evaluator/requirements.txt
+
+      - name: 📋 Parse submission issue
+        id: parse
+        env:
+          ISSUE_BODY: ${{ github.event.issue.body }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+        run: |
+          python submission_handler/process_submission.py \
+            --issue-body "$ISSUE_BODY" \
+            --issue-number "$ISSUE_NUMBER" \
+            --issue-title "$ISSUE_TITLE"
+
+      - name: 🔐 Restore secret test data
+        env:
+          TEST_DATA_B64: ${{ secrets.TEST_DATA_B64 }}
+          TEST_LABELS_B64: ${{ secrets.TEST_LABELS_B64 }}
+        run: |
+          echo "$TEST_DATA_B64" | base64 -d > /tmp/test_data.pt
+          echo "$TEST_LABELS_B64" | base64 -d > /tmp/test_labels.pt
+
+      - name: 🧪 Run evaluation
+        id: eval
+        env:
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          python evaluator/evaluate.py \
+            --model-path /tmp/submission_model.pth \
+            --model-code /tmp/model_class.py \
+            --test-data /tmp/test_data.pt \
+            --test-labels /tmp/test_labels.pt \
+            --output /tmp/results.json
+
+      - name: 💾 Update leaderboard
+        env:
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python submission_handler/update_leaderboard.py \
+            --results /tmp/results.json \
+            --issue-number "$ISSUE_NUMBER"
+
+      - name: 📤 Commit leaderboard update
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add leaderboard/results.json
+          git commit -m "📊 Update leaderboard — Issue #${{ github.event.issue.number }}" || echo "No changes"
+          git push
+
+      - name: 💬 Comment results on issue
+        uses: actions/github-script@v7
+        env:
+          RESULTS_PATH: /tmp/results.json
+        with:
+          script: |
+            const fs = require('fs');
+            const results = JSON.parse(fs.readFileSync('/tmp/results.json', 'utf8'));
+            
+            const emoji = results.f1_score >= 0.8 ? '🏆' : results.f1_score >= 0.6 ? '🎯' : '📈';
+            
+            const body = `## ${emoji} Evaluation Results — #${{ github.event.issue.number }}
+            
+            | Metric | Score |
+            |--------|-------|
+            | **Weighted F1** | \`${results.f1_score.toFixed(4)}\` |
+            | **Accuracy** | \`${results.accuracy.toFixed(4)}\` |
+            | **Inference Time** | \`${results.inference_time_ms.toFixed(1)} ms/batch\` |
+            | **Rank** | \`#${results.rank}\` |
+            
+            ### Per-class F1 scores
+            | Class | F1 |
+            |-------|----|
+            | 😠 Very Negative | \`${results.per_class_f1[0].toFixed(4)}\` |
+            | 😞 Negative | \`${results.per_class_f1[1].toFixed(4)}\` |
+            | 😐 Neutral | \`${results.per_class_f1[2].toFixed(4)}\` |
+            | 😊 Positive | \`${results.per_class_f1[3].toFixed(4)}\` |
+            | 😄 Very Positive | \`${results.per_class_f1[4].toFixed(4)}\` |
+            
+            🔗 [View full leaderboard](https://your-streamlit-app.streamlit.app)
+            
+            *Evaluated on ${new Date().toISOString().split('T')[0]}*`;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: body
+            });
+
+      - name: ✅ Label as evaluated
+        uses: actions/github-script@v7
+        with:
+          script: |
+            // Remove 'pending' label, add 'evaluated'
+            try {
+              await github.rest.issues.removeLabel({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                name: 'pending'
+              });
+            } catch(e) {}
+            
+            await github.rest.issues.addLabels({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              labels: ['evaluated']
+            });
+
+      - name: ❌ Handle evaluation failure
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `## ❌ Evaluation Failed
+              
+              An error occurred while evaluating your model. Common causes:
+              - ❌ Model class code has syntax errors
+              - ❌ Model output shape doesn't match \`(B, 5)\`
+              - ❌ Download link is not accessible
+              - ❌ Model file is corrupted
+              
+              Please check your submission and resubmit. If the issue persists, open a [Discussion](../../discussions).`
+            });
+            
+            await github.rest.issues.addLabels({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              labels: ['error']
+            });
