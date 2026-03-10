@@ -3,6 +3,5 @@ __pycache__/
 .env
 .DS_Store
 secret_labels.csv
-data/test/
 venv/
 .venv/
