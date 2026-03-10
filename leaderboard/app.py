@@ -22,7 +22,7 @@ st.set_page_config(
 )
 
 RESULTS_PATH = Path(__file__).parent / "results.json"
-GITHUB_REPO = os.getenv("GITHUB_REPO", "https://github.com/your-username/sentiment-competition")
+GITHUB_REPO = os.getenv("GITHUB_REPO", "https://github.com/Ntetack/sentiment-competition")
 EMOTIONS = ["Angry 😠", "Disgust 🤢", "Fear 😨", "Happy 😄", "Neutral 😐", "Sad 😢", "Surprise 😲"]
 EMOTION_KEYS = ["angry", "disgust", "fear", "happy", "neutral", "sad", "surprise"]
 AUTO_REFRESH = 60
