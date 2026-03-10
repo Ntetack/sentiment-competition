@@ -1,55 +1,37 @@
 # 📁 Data
 
-## Training Data
+## sample_submission.csv
 
-The training data is publicly available. Download it from:
-[Link to your dataset]
+Template CSV provided to participants. All labels set to `0` — participants replace with their predictions.
 
-### Structure expected
+## Secret Labels
 
-```
-data/
-└── train/
-    ├── 0_very_negative/
-    │   ├── img_001.jpg
-    │   └── ...
-    ├── 1_negative/
-    ├── 2_neutral/
-    ├── 3_positive/
-    └── 4_very_positive/
+Your secret labels file must be a CSV:
+
+```csv
+image_id,label
+img_0001,3
+img_0002,0
+img_0003,5
 ```
 
-## Test Data (Secret)
+### How to store it as a GitHub Secret
 
-The test set is **never shared**. It is stored encrypted as a GitHub Actions secret and only accessed during automated evaluation.
-
-### Format
-
-```python
-# test_data.pt  — shape: (N, 3, 224, 224), dtype: float32, values in [0, 1]
-# test_labels.pt — shape: (N,),            dtype: int64,   values in {0,1,2,3,4}
-test_data   = torch.load("test_data.pt")
-test_labels = torch.load("test_labels.pt")
-```
-
-## Encoding the test set for GitHub Secrets
-
-Run once to encode your test data:
+Since labels are just a small CSV (text), storing in GitHub Secrets is perfectly fine:
 
 ```bash
-python -c "
-import base64
-with open('test_data.pt', 'rb') as f:
-    print(base64.b64encode(f.read()).decode())
-" > test_data_b64.txt
-
-python -c "
-import base64
-with open('test_labels.pt', 'rb') as f:
-    print(base64.b64encode(f.read()).decode())
-" > test_labels_b64.txt
+# Copy the content of your secret_labels.csv
+cat secret_labels.csv
 ```
 
-Then add the contents as GitHub Secrets named:
-- `TEST_DATA_B64`
-- `TEST_LABELS_B64`
+Then:
+1. Go to your repo → **Settings** → **Secrets and variables** → **Actions**
+2. Click **"New repository secret"**
+3. Name: `SECRET_LABELS_CSV`
+4. Value: paste the full CSV content (including header)
+5. Click **"Add secret"**
+
+That's it. The pipeline reads it with:
+```yaml
+echo "$SECRET_LABELS_CSV" > /tmp/secret_labels.csv
+```

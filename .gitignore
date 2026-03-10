@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+.env
+.DS_Store
+secret_labels.csv
+data/test/
+venv/
+.venv/

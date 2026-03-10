@@ -3,9 +3,9 @@
   "last_updated": "",
   "total_submissions": 0,
   "competition": {
-    "name": "Image Sentiment Analysis Challenge",
-    "metric": "Weighted F1-Score",
-    "num_classes": 5,
-    "classes": ["Very Negative", "Negative", "Neutral", "Positive", "Very Positive"]
+    "name": "Image Emotion Recognition Challenge",
+    "metric": "Accuracy",
+    "num_classes": 7,
+    "classes": ["angry", "disgust", "fear", "happy", "neutral", "sad", "surprise"]
   }
 }

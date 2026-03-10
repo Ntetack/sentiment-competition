@@ -1,14 +1,11 @@
-# 🎭 Image Sentiment Analysis Challenge
+# 🎭 Image Emotion Recognition Challenge
 
 <div align="center">
 
-![Banner](docs/banner.png)
-
-**Compete to build the best image sentiment analysis model!**
+**Classify emotions in facial images — submit your predictions and climb the leaderboard!**
 
 [![Leaderboard](https://img.shields.io/badge/🏆_Leaderboard-Live-brightgreen)](https://your-streamlit-app.streamlit.app)
-[![Submissions](https://img.shields.io/badge/Submissions-Open-blue)](https://github.com/your-username/sentiment-competition/issues/new?template=submission.yml)
-[![License](https://img.shields.io/badge/License-MIT-yellow)](LICENSE)
+[![Submissions](https://img.shields.io/badge/Submissions-Open-blue)](../../issues/new?template=submission.yml)
 
 </div>
 
@@ -16,71 +13,115 @@
 
 ## 📋 Overview
 
-This competition challenges participants to classify the **emotional sentiment** of images into categories:
+This competition challenges participants to classify the **emotion** of facial images into 7 categories:
 
-| Label | Description |
-|-------|-------------|
-| 0 | Very Negative 😠 |
-| 1 | Negative 😞 |
-| 2 | Neutral 😐 |
-| 3 | Positive 😊 |
-| 4 | Very Positive 😄 |
+| Label | Emotion |
+|-------|---------|
+| 0 | Angry 😠 |
+| 1 | Disgust 🤢 |
+| 2 | Fear 😨 |
+| 3 | Happy 😄 |
+| 4 | Neutral 😐 |
+| 5 | Sad 😢 |
+| 6 | Surprise 😲 |
 
-**Metric**: Weighted F1-Score on a hidden test set.
+**Metric**: Accuracy on a hidden test set.
+
+---
+
+## 📁 Data
+
+Download the dataset here: **[link to your dataset]**
+
+```
+data/
+├── train/
+│   ├── angry/
+│   ├── disgust/
+│   ├── fear/
+│   ├── happy/
+│   ├── neutral/
+│   ├── sad/
+│   └── surprise/
+└── test/
+    ├── img_0001.jpg
+    ├── img_0002.jpg
+    └── ...
+```
+
+The `test/` folder contains images **without labels**. Your model must predict the emotion for each image.
+
+A `sample_submission.csv` is provided as a starting template.
 
 ---
 
 ## 🚀 How to Participate
 
-### Step 1 — Develop your model
+### Step 1 — Train your model
 
-Train a PyTorch model that accepts an image tensor `(B, 3, 224, 224)` and returns logits `(B, 5)`.
+Use the `train/` folder to build and train your model. You are free to use any framework (PyTorch, TensorFlow, sklearn...).
 
-```python
-import torch
-import torch.nn as nn
+A baseline is available in `docs/baseline_model.py`.
 
-class MyModel(nn.Module):
-    def __init__(self):
-        super().__init__()
-        # your architecture here
-
-    def forward(self, x):
-        # x: (B, 3, 224, 224)
-        # returns: (B, 5) logits
-        ...
-```
-
-### Step 2 — Export your model
-
-Save your trained model:
+### Step 2 — Generate predictions on the test set
 
 ```python
-torch.save(model.state_dict(), "my_model.pth")
+import pandas as pd
+import os
+
+predictions = []
+
+for img_file in sorted(os.listdir("data/test/")):
+    image_id = img_file.replace(".jpg", "")
+    label = your_model.predict(f"data/test/{img_file}")  # 0 to 6
+    predictions.append({"image_id": image_id, "label": label})
+
+df = pd.DataFrame(predictions)
+df.to_csv("my_submission.csv", index=False)
 ```
 
-### Step 3 — Submit via GitHub Issue
+### Step 3 — Check your CSV format
+
+Your file must look exactly like this:
+
+```csv
+image_id,label
+img_0001,3
+img_0002,0
+img_0003,5
+```
+
+- `image_id`: exact filename without extension
+- `label`: integer from 0 to 6
+
+### Step 4 — Submit via GitHub Issue
 
 1. Go to [Issues → New Issue](../../issues/new?template=submission.yml)
-2. Choose **"Model Submission"** template
-3. Fill in your details and upload your `.pth` file
-4. Submit — our CI/CD pipeline will automatically evaluate your model!
-
-### Step 4 — Check the Leaderboard
-
-Results appear on the [live leaderboard](https://your-streamlit-app.streamlit.app) within ~10 minutes.
+2. Choose **"Prediction Submission"** template
+3. Fill in your details and **attach your CSV file**
+4. Submit — results appear on the leaderboard within ~5 minutes!
 
 ---
 
-## 📦 Model Requirements
+## 📦 Submission Requirements
 
 | Requirement | Detail |
 |-------------|--------|
-| Framework | PyTorch >= 1.12 |
-| Input | `torch.Tensor` of shape `(B, 3, 224, 224)`, values in `[0, 1]` |
-| Output | `torch.Tensor` of shape `(B, 5)` — raw logits |
-| File size | ≤ 500MB |
-| Inference time | ≤ 30s per batch of 32 |
+| File format | `.csv` |
+| Columns | `image_id`, `label` |
+| Labels | Integers in `{0, 1, 2, 3, 4, 5, 6}` |
+| Rows | Must match the number of test images exactly |
+| Submissions/day | Maximum 3 per participant |
+
+---
+
+## 📊 Evaluation
+
+Models are ranked by **Accuracy** on the secret test labels.
+
+```
+Accuracy = Number of correct predictions / Total predictions
+```
 
 ---
 
@@ -90,60 +131,26 @@ Results appear on the [live leaderboard](https://your-streamlit-app.streamlit.ap
 sentiment-competition/
 ├── .github/
 │   ├── workflows/
-│   │   └── evaluate.yml        # Auto-evaluation pipeline
+│   │   └── evaluate.yml           # Auto-evaluation pipeline
 │   └── ISSUE_TEMPLATE/
-│       └── submission.yml      # Submission form template
+│       └── submission.yml         # Submission form
 ├── evaluator/
-│   ├── evaluate.py             # Evaluation script
-│   └── requirements.txt
+│   └── evaluate.py                # Evaluation script
 ├── leaderboard/
-│   ├── app.py                  # Streamlit leaderboard
-│   ├── results.json            # Scores database
-│   └── requirements.txt
+│   ├── app.py                     # Streamlit leaderboard
+│   └── results.json               # Scores database
 ├── submission_handler/
-│   └── process_submission.py   # Issue → eval pipeline
+│   └── process_submission.py      # Parses issue + runs evaluation
 ├── data/
-│   └── README.md               # Info about dataset format
+│   └── sample_submission.csv      # Template CSV for participants
 └── docs/
-    └── baseline_model.py       # Starter baseline
+    └── baseline_model.py          # Starter baseline
 ```
 
 ---
 
-## 📊 Evaluation Details
-
-Models are evaluated on:
-- **Primary**: Weighted F1-Score
-- **Secondary**: Accuracy
-- **Tertiary**: Inference Speed
-
-The test set is **private** and never shared publicly.
-
----
-
-## 🏆 Prizes
+## 🏆 Prize
 
 | Rank | Prize |
 |------|-------|
-| 🥇 1st | Certificate + Feature in paper |
-| 🥈 2nd | Certificate |
-| 🥉 3rd | Certificate |
-
----
-
-## ❓ FAQ
-
-**Q: Can I use pre-trained models?**  
-A: Yes! Transfer learning is allowed and encouraged.
-
-**Q: How many submissions per day?**  
-A: Maximum 3 submissions per participant per day.
-
-**Q: Can teams participate?**  
-A: Yes, teams of up to 3 people. Use one GitHub account per team.
-
----
-
-## 📬 Contact
-
-Open a [Discussion](../../discussions) for any questions!
+| 🥇 1st | 🍫 Chocolate |

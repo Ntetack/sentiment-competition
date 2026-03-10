@@ -1,144 +1,129 @@
 """
-process_submission.py — Parses a GitHub Issue body and prepares files for evaluation.
+process_submission.py — Parses GitHub Issue body and extracts CSV + metadata.
 """
 
 import argparse
+import json
 import os
 import re
 import sys
-import textwrap
-import urllib.request
-from pathlib import Path
 
 
 def parse_issue_body(body: str) -> dict:
-    """
-    Parse the structured GitHub Issue form body.
-    GitHub Forms render as markdown with ### headers.
-    """
+    """Parse GitHub Issue form body into a dict."""
     data = {}
-    
-    # Match ### Header\n\nValue patterns
     pattern = re.compile(r"### (.+?)\n\n(.+?)(?=\n\n###|\Z)", re.DOTALL)
-    matches = pattern.findall(body)
-    
-    field_map = {
-        "👤 Team / Participant Name": "team_name",
-        "📧 Contact Email": "email",
-        "🏷️ Model Name": "model_name",
-        "🏗️ Base Architecture": "architecture",
-        "🔗 Model File URL (.pth)": "model_url",
-        "📝 Model Class Code": "model_class",
-        "📄 Model Description": "description",
-    }
-    
-    for header, value in matches:
+    for header, value in pattern.findall(body):
         header = header.strip()
         value = value.strip()
+        field_map = {
+            "👤 Team / Participant Name": "team_name",
+            "🏷️ Model / Run Name": "model_name",
+            "📄 Approach Description": "description",
+            "🔢 Submission Number (today)": "submission_number",
+            "📎 CSV Predictions": "csv_content",
+        }
         if header in field_map:
             data[field_map[header]] = value
-    
     return data
 
 
-def clean_code(code: str) -> str:
-    """Remove markdown code fences if present."""
-    code = re.sub(r"^```python\n?", "", code, flags=re.MULTILINE)
-    code = re.sub(r"^```\n?", "", code, flags=re.MULTILINE)
-    return code.strip()
+def clean_csv(csv_text: str) -> str:
+    """Remove markdown fences and extra whitespace."""
+    csv_text = re.sub(r"^```.*?\n", "", csv_text, flags=re.MULTILINE)
+    csv_text = re.sub(r"```$", "", csv_text, flags=re.MULTILINE)
+    return csv_text.strip()
 
 
-def download_model(url: str, dest: str):
-    """Download model file from URL."""
-    # Handle Google Drive links
-    gdrive_match = re.match(
-        r"https://drive\.google\.com/file/d/([^/]+)/", url
-    )
-    if gdrive_match:
-        file_id = gdrive_match.group(1)
-        url = f"https://drive.google.com/uc?export=download&id={file_id}"
-    
-    # Handle Dropbox links
-    if "dropbox.com" in url and "dl=0" in url:
-        url = url.replace("dl=0", "dl=1")
-    
-    print(f"[INFO] Downloading model from: {url}")
-    
-    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
-    with urllib.request.urlopen(req, timeout=120) as response:
-        total = int(response.headers.get("Content-Length", 0))
-        downloaded = 0
-        chunk_size = 1024 * 1024  # 1MB
-        
-        with open(dest, "wb") as f:
-            while True:
-                chunk = response.read(chunk_size)
-                if not chunk:
-                    break
-                f.write(chunk)
-                downloaded += len(chunk)
-                if total:
-                    pct = downloaded / total * 100
-                    print(f"  {downloaded / 1e6:.1f} MB / {total / 1e6:.1f} MB ({pct:.0f}%)")
-    
-    size_mb = Path(dest).stat().st_size / 1e6
-    print(f"[INFO] Downloaded {size_mb:.1f} MB to {dest}")
-    
-    if size_mb > 500:
-        raise ValueError(f"Model file too large: {size_mb:.1f} MB > 500 MB limit")
+def validate_csv(csv_text: str) -> list:
+    """Validate CSV format and return list of (image_id, label) tuples."""
+    lines = [l.strip() for l in csv_text.strip().splitlines() if l.strip()]
+
+    if not lines:
+        raise ValueError("CSV is empty.")
+
+    # Check header
+    header = lines[0].lower().replace(" ", "")
+    if header != "image_id,label":
+        raise ValueError(
+            f"Invalid header: '{lines[0]}'. Expected: 'image_id,label'"
+        )
+
+    rows = []
+    for i, line in enumerate(lines[1:], start=2):
+        parts = line.split(",")
+        if len(parts) != 2:
+            raise ValueError(f"Line {i}: expected 2 columns, got {len(parts)}: '{line}'")
+
+        image_id = parts[0].strip()
+        label_str = parts[1].strip()
+
+        if not image_id:
+            raise ValueError(f"Line {i}: empty image_id")
+
+        try:
+            label = int(label_str)
+        except ValueError:
+            raise ValueError(f"Line {i}: label '{label_str}' is not an integer")
+
+        if label < 0 or label > 6:
+            raise ValueError(f"Line {i}: label {label} is out of range [0-6]")
+
+        rows.append((image_id, label))
+
+    if len(rows) == 0:
+        raise ValueError("CSV has no prediction rows.")
+
+    print(f"[INFO] CSV validated: {len(rows)} predictions")
+    return rows
 
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--issue-body", required=True)
     parser.add_argument("--issue-number", required=True)
     parser.add_argument("--issue-title", required=True)
     args = parser.parse_args()
-    
-    print(f"[INFO] Processing submission — Issue #{args.issue_number}")
-    print(f"[INFO] Title: {args.issue_title}")
-    
-    # Parse issue
-    data = parse_issue_body(args.issue_body)
-    
-    required_fields = ["team_name", "model_name", "model_url", "model_class"]
-    for field in required_fields:
-        if field not in data or not data[field].strip():
-            print(f"[ERROR] Missing required field: {field}", file=sys.stderr)
-            sys.exit(1)
-    
-    print(f"[INFO] Team: {data['team_name']}")
-    print(f"[INFO] Model: {data['model_name']}")
-    
-    # Save model class code
-    model_code = clean_code(data["model_class"])
-    
-    # Add standard imports if not present
-    if "import torch" not in model_code:
-        model_code = "import torch\nimport torch.nn as nn\n\n" + model_code
-    
-    model_code_path = "/tmp/model_class.py"
-    with open(model_code_path, "w") as f:
-        f.write(model_code)
-    print(f"[INFO] Model class saved to {model_code_path}")
-    
+
+    issue_body = os.environ.get("ISSUE_BODY", "")
+
+    print(f"[INFO] Processing Issue #{args.issue_number}: {args.issue_title}")
+
+    # Parse
+    data = parse_issue_body(issue_body)
+
+    if "csv_content" not in data or not data["csv_content"].strip():
+        print("[ERROR] No CSV content found in issue.", file=sys.stderr)
+        sys.exit(1)
+
+    if "team_name" not in data or not data["team_name"].strip():
+        print("[ERROR] No team name found.", file=sys.stderr)
+        sys.exit(1)
+
+    # Validate CSV
+    csv_text = clean_csv(data["csv_content"])
+    rows = validate_csv(csv_text)
+
+    # Save cleaned CSV
+    with open("/tmp/submission.csv", "w") as f:
+        f.write("image_id,label\n")
+        for image_id, label in rows:
+            f.write(f"{image_id},{label}\n")
+
+    print(f"[INFO] Saved {len(rows)} predictions to /tmp/submission.csv")
+
     # Save metadata
-    import json
     metadata = {
-        "team_name": data.get("team_name", "Unknown"),
-        "model_name": data.get("model_name", "Unknown"),
-        "architecture": data.get("architecture", "Unknown"),
-        "description": data.get("description", ""),
-        "email": data.get("email", ""),
+        "team_name": data.get("team_name", "Unknown").strip(),
+        "model_name": data.get("model_name", "Unknown").strip(),
+        "description": data.get("description", "").strip(),
+        "submission_number": data.get("submission_number", "1").strip(),
         "issue_number": int(args.issue_number),
         "issue_title": args.issue_title,
     }
-    with open("/tmp/submission_metadata.json", "w") as f:
+    with open("/tmp/metadata.json", "w") as f:
         json.dump(metadata, f, indent=2)
-    
-    # Download model
-    download_model(data["model_url"], "/tmp/submission_model.pth")
-    
+
+    print(f"[INFO] Team: {metadata['team_name']} | Model: {metadata['model_name']}")
     print("[INFO] Submission parsed successfully ✓")
 
 

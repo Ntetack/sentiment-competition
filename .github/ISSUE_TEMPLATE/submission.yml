@@ -1,102 +1,62 @@
-name: "🤖 Model Submission"
-description: "Submit your model for evaluation"
-title: "[SUBMISSION] Your Team Name - Model Version"
+name: "📊 Prediction Submission"
+description: "Submit your predictions CSV for evaluation"
+title: "[SUBMISSION] Team Name - Run Number"
 labels: ["submission", "pending"]
 body:
   - type: markdown
     attributes:
       value: |
-        ## 🎭 Image Sentiment Analysis — Model Submission
-        Fill in all fields carefully. Your model will be evaluated automatically within ~10 minutes.
+        ## 🎭 Image Emotion Recognition — Prediction Submission
+        Fill in all fields and attach your CSV file. Your score will appear here and on the leaderboard within ~5 minutes.
 
   - type: input
     id: team_name
     attributes:
       label: "👤 Team / Participant Name"
-      placeholder: "e.g., Team NeuralVibes"
-    validations:
-      required: true
-
-  - type: input
-    id: email
-    attributes:
-      label: "📧 Contact Email"
-      placeholder: "your@email.com"
+      placeholder: "e.g., Team Dakar"
     validations:
       required: true
 
   - type: input
     id: model_name
     attributes:
-      label: "🏷️ Model Name"
-      placeholder: "e.g., ResNet50-FT-v2"
-    validations:
-      required: true
-
-  - type: dropdown
-    id: architecture
-    attributes:
-      label: "🏗️ Base Architecture"
-      options:
-        - ResNet (18/34/50/101/152)
-        - EfficientNet
-        - ViT (Vision Transformer)
-        - ConvNeXt
-        - DenseNet
-        - MobileNet
-        - Custom architecture
-        - Other
-    validations:
-      required: true
-
-  - type: input
-    id: model_url
-    attributes:
-      label: "🔗 Model File URL (.pth)"
-      description: |
-        Upload your `.pth` file somewhere accessible (Google Drive, Dropbox, HuggingFace Hub, etc.)
-        and paste the **direct download link** here.
-        ⚠️ Make sure the link is publicly accessible.
-      placeholder: "https://drive.google.com/uc?id=YOUR_FILE_ID"
-    validations:
-      required: true
-
-  - type: textarea
-    id: model_class
-    attributes:
-      label: "📝 Model Class Code"
-      description: "Paste the full Python class definition of your model (needed to load the weights)."
-      placeholder: |
-        import torch.nn as nn
-        import torchvision.models as models
-
-        class MyModel(nn.Module):
-            def __init__(self):
-                super().__init__()
-                self.backbone = models.resnet50(pretrained=False)
-                self.backbone.fc = nn.Linear(2048, 5)
-
-            def forward(self, x):
-                return self.backbone(x)
-      render: python
+      label: "🏷️ Model / Run Name"
+      placeholder: "e.g., ResNet50-augmented-v2"
     validations:
       required: true
 
   - type: textarea
     id: description
     attributes:
-      label: "📄 Model Description"
-      description: "Brief description of your approach, training strategy, data augmentation, etc."
-      placeholder: "Fine-tuned ResNet50 on the training set with mixup augmentation..."
+      label: "📄 Approach Description"
+      description: "Brief description of your model and strategy."
+      placeholder: "Fine-tuned ResNet50 with mixup augmentation, trained for 20 epochs..."
+    validations:
+      required: false
+
+  - type: input
+    id: submission_number
+    attributes:
+      label: "🔢 Submission Number (today)"
+      description: "Maximum 3 submissions per day."
+      placeholder: "1"
     validations:
       required: true
 
-  - type: input
-    id: submission_count
+  - type: textarea
+    id: csv_content
     attributes:
-      label: "🔢 Submission Number (today)"
-      description: "How many submissions have you made today? (Max 3/day)"
-      placeholder: "1"
+      label: "📎 CSV Predictions"
+      description: |
+        Paste the full content of your submission CSV here.
+        First row must be the header: `image_id,label`
+        Each subsequent row: `img_XXXX,N` where N is 0-6.
+      placeholder: |
+        image_id,label
+        img_0001,3
+        img_0002,0
+        img_0003,5
+      render: text
     validations:
       required: true
 
@@ -105,13 +65,11 @@ body:
     attributes:
       label: "✅ Pre-submission Checklist"
       options:
-        - label: "My model accepts input of shape `(B, 3, 224, 224)` with values in `[0, 1]`"
+        - label: "My CSV has exactly two columns: `image_id` and `label`"
           required: true
-        - label: "My model outputs logits of shape `(B, 5)`"
+        - label: "All labels are integers between 0 and 6"
           required: true
-        - label: "The model file is ≤ 500MB"
+        - label: "My CSV contains predictions for all test images"
           required: true
-        - label: "I have tested my model locally before submitting"
-          required: true
-        - label: "I agree to the competition rules"
+        - label: "This is submission number ≤ 3 for today"
           required: true
