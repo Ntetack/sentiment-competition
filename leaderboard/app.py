@@ -26,7 +26,7 @@ st.set_page_config(
 
 RESULTS_PATH = Path(__file__).parent / "results.json"
 CLASS_NAMES = ["Very Negative 😠", "Negative 😞", "Neutral 😐", "Positive 😊", "Very Positive 😄"]
-GITHUB_REPO = os.getenv("GITHUB_REPO", "https://github.com/your-username/sentiment-competition")
+GITHUB_REPO = os.getenv("GITHUB_REPO", "https://github.com/Ntetack/sentiment-competition")
 AUTO_REFRESH_SECONDS = 60
 
 
