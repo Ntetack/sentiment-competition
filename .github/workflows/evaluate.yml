@@ -50,11 +50,12 @@ jobs:
             --issue-number "$ISSUE_NUMBER" \
             --issue-title "$ISSUE_TITLE"
 
-      - name: 🔐 Restore secret labels
-        env:
-          SECRET_LABELS_CSV: ${{ secrets.SECRET_LABELS_CSV }}
+      - name: 🔐 Decrypt secret labels
         run: |
-          echo "$SECRET_LABELS_CSV" > /tmp/secret_labels.csv
+          openssl enc -d -aes-256-cbc -pbkdf2 \
+            -in secret_labels.enc \
+            -out /tmp/secret_labels.csv \
+            -k "${{ secrets.LABELS_PASSWORD }}"
 
       - name: 🧪 Run evaluation
         run: |
