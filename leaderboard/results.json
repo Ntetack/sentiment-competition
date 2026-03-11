@@ -1,11 +1,69 @@
 {
-  "submissions": [],
-  "last_updated": "",
-  "total_submissions": 0,
+  "submissions": [
+    {
+      "status": "success",
+      "team_name": "TEST TEST",
+      "model_name": "TEST_MODEL",
+      "description": "_No response_",
+      "issue_number": 3,
+      "accuracy": 1.0,
+      "correct": 7178,
+      "total": 7178,
+      "per_class": {
+        "angry": {
+          "correct": 958,
+          "total": 958,
+          "acc": 1.0
+        },
+        "disgust": {
+          "correct": 111,
+          "total": 111,
+          "acc": 1.0
+        },
+        "fear": {
+          "correct": 1024,
+          "total": 1024,
+          "acc": 1.0
+        },
+        "happy": {
+          "correct": 1774,
+          "total": 1774,
+          "acc": 1.0
+        },
+        "neutral": {
+          "correct": 1233,
+          "total": 1233,
+          "acc": 1.0
+        },
+        "sad": {
+          "correct": 1247,
+          "total": 1247,
+          "acc": 1.0
+        },
+        "surprise": {
+          "correct": 831,
+          "total": 831,
+          "acc": 1.0
+        }
+      },
+      "rank": 1,
+      "submitted_at": "2026-03-11T00:51:58.780028+00:00"
+    }
+  ],
+  "last_updated": "2026-03-11T00:51:58.780113+00:00",
+  "total_submissions": 1,
   "competition": {
     "name": "Image Emotion Recognition Challenge",
     "metric": "Accuracy",
     "num_classes": 7,
-    "classes": ["angry", "disgust", "fear", "happy", "neutral", "sad", "surprise"]
+    "classes": [
+      "angry",
+      "disgust",
+      "fear",
+      "happy",
+      "neutral",
+      "sad",
+      "surprise"
+    ]
   }
 }
